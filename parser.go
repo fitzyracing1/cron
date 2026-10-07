@@ -96,6 +96,12 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 		var err error
 		i := strings.Index(spec, " ")
 		eq := strings.Index(spec, "=")
+		// A timezone prefix with nothing after it, such as "TZ=0" or
+		// "TZ=UTC", has no space to split on. That used to slice
+		// spec[eq+1:-1] and panic (robfig/cron#554, #470).
+		if i == -1 {
+			return nil, fmt.Errorf("missing schedule after timezone: %s", spec)
+		}
 		if loc, err = time.LoadLocation(spec[eq+1 : i]); err != nil {
 			return nil, fmt.Errorf("provided bad location %s: %v", spec[eq+1:i], err)
 		}

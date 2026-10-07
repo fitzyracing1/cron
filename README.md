@@ -1,22 +1,96 @@
-[![GoDoc](http://godoc.org/github.com/robfig/cron?status.png)](http://godoc.org/github.com/robfig/cron)
-[![Build Status](https://travis-ci.org/robfig/cron.svg?branch=master)](https://travis-ci.org/robfig/cron)
+# cron (360 Bench fork)
 
-# cron
+> Part of **[360 Bench](https://github.com/fitzyracing1/360-bench)**, tested fixes for abandoned packages.
 
-Cron V3 has been released!
+[![Go Reference](https://pkg.go.dev/badge/github.com/fitzyracing1/cron/v3.svg)](https://pkg.go.dev/github.com/fitzyracing1/cron/v3)
 
-To download the specific tagged release, run:
+> **This is a fork of [robfig/cron](https://github.com/robfig/cron) by
+> [Rob Figueiredo](https://github.com/robfig)** and its contributors, published so that
+> programs which parse user-supplied schedules stop crashing. Upstream has not tagged a
+> release since v3.0.1 (January 2020), and the panic below has four unmerged fix PRs. All
+> credit for the original library goes to its author and contributors; it remains available
+> under the same [MIT license](./LICENSE).
 
-	go get github.com/robfig/cron/v3@v3.0.0
+## What's fixed in this fork
 
-Import it in your program as:
+Based on the upstream [`v3.0.1`](https://github.com/robfig/cron/releases/tag/v3.0.1) tag
+(January 2020). The API is unchanged, and wherever v3.0.1 didn't panic it behaves exactly the same:
+every schedule that parsed before parses to the same thing.
 
-	import "github.com/robfig/cron/v3"
+- **No more `panic: runtime error: slice bounds out of range [:-1]` when a schedule is only a
+  timezone prefix.** `cron.ParseStandard("TZ=0")`, `"TZ=UTC"`, `"CRON_TZ=Asia/Tokyo"`, `"TZ="`
+  or `"TZ=TZ=TZ="`, passed to any parser or to `Cron.AddFunc` / `AddJob`, used to crash the
+  whole process, which matters when schedules come from users or config. They now return the
+  error `missing schedule after timezone: <spec>`.
+  Upstream issues: [#554](https://github.com/robfig/cron/issues/554),
+  [#470](https://github.com/robfig/cron/issues/470). Same fix proposed in unmerged PRs
+  [#555](https://github.com/robfig/cron/pull/555), [#566](https://github.com/robfig/cron/pull/566),
+  [#567](https://github.com/robfig/cron/pull/567) and [#574](https://github.com/robfig/cron/pull/574)
+  (and the earlier, closed [#365](https://github.com/robfig/cron/pull/365)).
+
+Not included, on purpose: #574 also rejects steps larger than the field range (such as
+`*/90 * * * *`, issue [#543](https://github.com/robfig/cron/issues/543)). Those specs parse
+without panicking today, so rejecting them would change behaviour for existing users.
+
+A fuzz test (`FuzzParse`) runs every parser over the seed corpus on each `go test`; longer fuzzing
+runs found no other parser panics.
+
+### Not included: upstream's unreleased `master` commits
+
+Upstream merged four commits after v3.0.1 but never tagged them. They are deliberately **not** in
+this fork, so that v3.0.2 is v3.0.1 plus the panic fix only (360 Bench rule: same behaviour wherever
+the original didn't crash):
+
+- [`bc59245`](https://github.com/robfig/cron/commit/bc59245) `SkipIfStillRunning`: return the
+  run token even if the job panics. This changes runtime behaviour, so it is left to upstream.
+- [`e7da914`](https://github.com/robfig/cron/commit/e7da914),
+  [`208b4f7`](https://github.com/robfig/cron/commit/208b4f7),
+  [`6a8421b`](https://github.com/robfig/cron/commit/6a8421b): README and code-comment fixes.
+
+## How to switch
+
+Either change your imports to the fork:
+
+```bash
+go get github.com/fitzyracing1/cron/v3@v3.0.2
+# then replace github.com/robfig/cron/v3 with github.com/fitzyracing1/cron/v3 in your imports
+```
+
+```go
+import "github.com/fitzyracing1/cron/v3"
+```
+
+Or keep your imports (and fix it for dependencies that import robfig/cron too) with a `replace`
+directive in your `go.mod`:
+
+```
+replace github.com/robfig/cron/v3 => github.com/fitzyracing1/cron/v3 v3.0.2
+```
 
 It requires Go 1.11 or later due to usage of Go Modules.
 
 Refer to the documentation here:
-http://godoc.org/github.com/robfig/cron
+https://pkg.go.dev/github.com/fitzyracing1/cron/v3
+
+## Tests
+
+```bash
+go test ./... -race
+go vet ./...
+go test -run='^$' -fuzz=FuzzParse -fuzztime=60s   # optional, Go 1.18+
+```
+
+The regression tests are in `parser_tz_test.go` and `parser_fuzz_test.go`; they panic on
+upstream v3.0.1 and pass here.
+
+## License
+
+MIT, copyright (C) 2012 Rob Figueiredo. See [LICENSE](./LICENSE). Fork changes by Joshua Almeida
+are under the same license.
+
+---
+
+*The rest of this README is upstream's.*
 
 The rest of this document describes the the advances in v3 and a list of
 breaking changes for users that wish to upgrade from an earlier version.

@@ -1,15 +1,19 @@
 /*
 Package cron implements a cron spec parser and job runner.
 
+This is the 360 Bench fork of github.com/robfig/cron (MIT, Rob Figueiredo).
+It returns an error instead of panicking when a schedule is only a timezone
+prefix such as "TZ=0" (robfig/cron#554). See README.md for details.
+
 Installation
 
 To download the specific tagged release, run:
 
-	go get github.com/robfig/cron/v3@v3.0.0
+	go get github.com/fitzyracing1/cron/v3@v3.0.2
 
 Import it in your program as:
 
-	import "github.com/robfig/cron/v3"
+	import "github.com/fitzyracing1/cron/v3"
 
 It requires Go 1.11 or later due to usage of Go Modules.
 
